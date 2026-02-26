@@ -1,9 +1,4 @@
-FROM gcc:latest
-
+FROM python:3.10-slim
 WORKDIR /app
-
-COPY app.cpp .
-
-RUN g++ app.cpp -o app
-
-CMD ["./app"]
+EXPOSE 8080
+CMD ["python3", "-m", "http.server", "8080"]
