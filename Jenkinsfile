@@ -1,30 +1,43 @@
-stage('Deploy Backends') {
-    steps {
-        sh '''
-        docker rm -f backend1 backend2 || true
-        docker network create lab-network || true
+pipeline {
+    agent any
 
-        docker run -d --name backend1 --network lab-network backend-app
-        docker run -d --name backend2 --network lab-network backend-app
+    stages {
 
-        sleep 5
-        '''
-    }
-}
+        stage('Build Backend Image') {
+            steps {
+                sh 'docker build -t backend-app backend'
+            }
+        }
 
-stage('Deploy NGINX') {
-    steps {
-        sh '''
-        docker rm -f nginx-lb || true
+        stage('Deploy Backends') {
+            steps {
+                sh '''
+                docker rm -f backend1 backend2 || true
+                docker network create lab-network || true
 
-        docker run -d --name nginx-lb \
-        --network lab-network \
-        -p 80:80 nginx:latest
+                docker run -d --name backend1 --network lab-network backend-app
+                docker run -d --name backend2 --network lab-network backend-app
 
-        sleep 5
+                sleep 5
+                '''
+            }
+        }
 
-        docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
-        docker exec nginx-lb nginx -s reload
-        '''
+        stage('Deploy NGINX') {
+            steps {
+                sh '''
+                docker rm -f nginx-lb || true
+
+                docker run -d --name nginx-lb \
+                --network lab-network \
+                -p 80:80 nginx:latest
+
+                sleep 5
+
+                docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
+                docker exec nginx-lb nginx -s reload
+                '''
+            }
+        }
     }
 }
