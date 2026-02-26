@@ -12,7 +12,7 @@ pipeline {
         stage('Build Backend Image') {
             steps {
                 sh '''
-                echo "Building backend Docker image..."
+                echo "Building backend image..."
                 docker build -t backend-app backend
                 '''
             }
@@ -21,18 +21,20 @@ pipeline {
         stage('Deploy Backends') {
             steps {
                 sh '''
-                echo "Removing old backend containers..."
+                echo "Removing old containers..."
                 docker rm -f backend1 backend2 || true
-
-                echo "Creating Docker network..."
                 docker network create lab-network || true
 
-                echo "Starting backend containers..."
-                docker run -d --name backend1 --network lab-network backend-app
-                docker run -d --name backend2 --network lab-network backend-app
+                echo "Starting backend1..."
+                docker run -d --name backend1 --network lab-network backend-app \
+                sh -c "echo Backend1 > index.html && python3 -m http.server 8080"
 
-                echo "Waiting for backends to initialize..."
-                sleep 10
+                echo "Starting backend2..."
+                docker run -d --name backend2 --network lab-network backend-app \
+                sh -c "echo Backend2 > index.html && python3 -m http.server 8080"
+
+                echo "Waiting for backends..."
+                sleep 8
                 '''
             }
         }
@@ -40,22 +42,22 @@ pipeline {
         stage('Deploy NGINX') {
             steps {
                 sh '''
-                echo "Removing old NGINX container..."
+                echo "Removing old NGINX..."
                 docker rm -f nginx-lb || true
 
-                echo "Starting NGINX container..."
+                echo "Starting NGINX..."
                 docker run -d --name nginx-lb \
                 --network lab-network \
                 -p 80:80 nginx:latest
 
-                echo "Waiting before configuring NGINX..."
-                sleep 10
+                echo "Waiting before copying config..."
+                sleep 5
 
-                echo "Copying NGINX config..."
+                echo "Copying config..."
                 docker exec nginx-lb rm -f /etc/nginx/conf.d/default.conf || true
                 docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
 
-                echo "Testing NGINX config..."
+                echo "Testing config..."
                 docker exec nginx-lb nginx -t
 
                 echo "Reloading NGINX..."
@@ -67,10 +69,10 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully."
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo "Pipeline failed. Check console logs."
+            echo "Pipeline failed. Check logs."
         }
     }
 }
